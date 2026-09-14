@@ -3,8 +3,14 @@
 专为无ssh权限的arm设备制作构建的ET组网镜像  可直接docker拉取或发行版直接下载镜像包
 
 ghcr.io/laolong550/easytier-server-web:v2.6.4     	✅ 已推送
+
+
 ghcr.io/laolong550/easytier-server-web:v2.6.4-arm64	✅ 已推送
+
+
 ghcr.io/laolong550/easytier-server-web:v2.6.4-amd64	✅ 已推送
+
+
 ghcr.io/laolong550/easytier-server-web:latest     	✅ 已推送
 
 ## 背景
