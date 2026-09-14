@@ -59,7 +59,6 @@ jobs:
           VER: ${{ github.event.inputs.version }}
           BASE: ${{ github.event.inputs.base_image }}
         run: |
-          VER_SAFE=${VER#v}
           IMAGE="ghcr.io/${{ github.repository }}"
           
           mkdir -p /tmp/ctx-aarch64/overrides
@@ -114,12 +113,6 @@ jobs:
           
           docker save ${IMAGE}:${VER}-arm64 -o /tmp/easytier-server-web-${VER_SAFE}-arm64.tar
           docker save ${IMAGE}:${VER}-amd64 -o /tmp/easytier-server-web-${VER_SAFE}-amd64.tar
-          
-          docker manifest create ${IMAGE}:${VER} \
-            ${IMAGE}:${VER}-arm64 \
-            ${IMAGE}:${VER}-amd64
-          docker manifest push ${IMAGE}:${VER}
-          
           docker save ${IMAGE}:${VER} -o /tmp/easytier-server-web-${VER_SAFE}-multiarch.tar
           
           ls -lh /tmp/easytier-server-web-*.tar
