@@ -1,61 +1,9 @@
 name: Rebuild easytier-server-web (kernel upgrade)
-
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'EasyTier official version to upgrade to, e.g. v2.6.4'
-        required: true
-        default: 'v2.6.4'
-      base_image:
-        description: 'Author upstream image (keep default)'
-        required: false
-        default: 'jaycq/easytier-server-web:latest'
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Download official aarch64 binaries
-        env:
-          VER: ${{ github.event.inputs.version }}
-        run: |
-          curl -sL -o /tmp/et.zip \
-            "https://github.com/EasyTier/EasyTier/releases/download/${VER}/easytier-linux-aarch64-${VER}.zip"
-          unzip -o /tmp/et.zip -d /tmp/et
-          find /tmp/et -type f \( -name 'easytier-core' -o -name 'easytier-web-embed' -o -name 'easytier-cli' \) -exec ls -la {} +
-
-      - name: Build upgraded image
-        env:
-          VER: ${{ github.event.inputs.version }}
-          BASE: ${{ github.event.inputs.base_image }}
-        run: |
-          VER_SAFE=${VER#v}
-          mkdir -p /tmp/ctx/overrides
-          find /tmp/et -type f \( -name 'easytier-core' -o -name 'easytier-web-embed' -o -name 'easytier-cli' \) -exec cp {} /tmp/ctx/overrides/ \;
-          printf 'FROM %s\nCOPY overrides/ /usr/local/bin/\nLABEL easytier.version=%s\n' \
-            "${BASE}" "${VER}" > /tmp/ctx/Dockerfile
-          docker buildx build \
-            --platform linux/arm64 \
-            -t easytier-server-web:${VER} \
-            --output type=docker,dest=/tmp/easytier-server-web-${VER}-arm64.tar \
-            /tmp/ctx
-          echo "VER_SAFE=$VER_SAFE" >> "$GITHUB_ENV"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: easytier-server-web-${{ env.VER_SAFE }}-arm64
-          path: /tmp/easytier-server-web-*.tar
+on:  workflow_dispatch:    inputs:      version:        description: 'EasyTier official version to upgrade to, e.g. v2.6.4'        required: true        default: 'v2.6.4'      base_image:        description: 'Author upstream image (keep default)'        required: false        default: 'jaycq/easytier-server-web:latest'
+jobs:  build:    runs-on: ubuntu-latest    permissions:      contents: write      packages: write    steps:      - name: Checkout        uses: actions/checkout@v4
+      - name: Set up QEMU        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx        uses: docker/setup-buildx-action@v3
+      - name: Login to ghcr.io        uses: docker/login-action@v3        with:          registry: ghcr.io          username: ${{ github.actor }}          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download official aarch64 binaries        env:          VER: ${{ github.event.inputs.version }}        run: |          curl -sL -o /tmp/et-aarch64.zip \            "https://github.com/EasyTier/EasyTier/releases/download/${VER}/easytier-linux-aarch64-${VER}.zip"          unzip -o /tmp/et-aarch64.zip -d /tmp/et-aarch64          echo "=== aarch64 binaries ==="          find /tmp/et-aarch64 -type f \( -name 'easytier-core' -o -name 'easytier-web-embed' -o -name 'easytier-cli' \) -exec ls -la {} +
+      - name: Download official x86_64 binaries        env:          VER: ${{ github.event.inputs.version }}        run: |          curl -sL -o /tmp/et-x86_64.zip \            "https://github.com/EasyTier/EasyTier/releases/download/${VER}/easytier-linux-x86_64-${VER}.zip"          unzip -o /tmp/et-x86_64.zip -d /tmp/et-x86_64          echo "=== x86_64 binaries ==="          find /tmp/et-x86_64 -type f \( -name 'easytier-core' -o -name 'easytier-web-embed' -o -name 'easytier-cli' \) -exec ls -la {} +
+      - name: Build and push multi-platform image        env:          VER: ${{ github.event.inputs.version }}          BASE: ${{ github.event.inputs.base_image }}        run: |          VER_SAFE=${VER#v}          IMAGE="ghcr.io/${{ github.repository }}"          # Create multi-arch context          mkdir -p /tmp/ctx-aarch64/overrides          mkdir -p /tmp/ctx-x86_64/overrides                    find /tmp/et-aarch64 -type f \( -name 'easytier-core' -o -name 'easytier-web-embed' -o -name 'easytier-cli' \) -exec cp {} /tmp/ctx-aarch64/overrides/ \;          find /tmp/et-x86_64 -type f \( -name 'easytier-core' -o -name 'easytier-web-embed' -o -name 'easytier-cli' \) -exec cp {} /tmp/ctx-x86_64/overrides/ \;                    # Build aarch64          printf 'FROM %s\nCOPY overrides/ /usr/local/bin/\nLABEL easytier.version=%s\n' \            "${BASE}" "${VER}" > /tmp/ctx-aarch64/Dockerfile          docker buildx build \            --platform linux/arm64 \            -t ${IMAGE}:${VER}-arm64 \            --push \            /tmp/ctx-aarch64                    # Build x86_64          printf 'FROM %s\nCOPY overrides/ /usr/local/bin/\nLABEL easytier.version=%s\n' \            "${BASE}" "${VER}" > /tmp/ctx-x86_64/Dockerfile          docker buildx build \            --platform linux/amd64 \            -t ${IMAGE}:${VER}-amd64 \            --push \            /tmp/ctx-x86_64                    # Create manifest list          docker manifest create ${IMAGE}:${VER} \            ${IMAGE}:${VER}-arm64 \            ${IMAGE}:${VER}-amd64          docker manifest push ${IMAGE}:${VER}                    # Tag as latest          docker manifest create ${IMAGE}:latest \            ${IMAGE}:${VER}-arm64 \            ${IMAGE}:${VER}-amd64          docker manifest push ${IMAGE}:latest                    echo "=== Published ==="          echo "Manifest: ${IMAGE}:${VER}"          echo "Manifest: ${IMAGE}:latest"          echo "ARM64: ${IMAGE}:${VER}-arm64"          echo "AMD64: ${IMAGE}:${VER}-amd64"
