@@ -96,8 +96,44 @@ jobs:
             ${IMAGE}:${VER}-amd64
           docker manifest push ${IMAGE}:latest
           
-          echo "=== Published ==="
+          echo "=== Published to ghcr.io ==="
           echo "Manifest: ${IMAGE}:${VER}"
           echo "Manifest: ${IMAGE}:latest"
           echo "ARM64: ${IMAGE}:${VER}-arm64"
           echo "AMD64: ${IMAGE}:${VER}-amd64"
+
+      - name: Export images as tar
+        env:
+          VER: ${{ github.event.inputs.version }}
+        run: |
+          VER_SAFE=${VER#v}
+          IMAGE="ghcr.io/${{ github.repository }}"
+          
+          docker pull ${IMAGE}:${VER}-arm64
+          docker pull ${IMAGE}:${VER}-amd64
+          
+          docker save ${IMAGE}:${VER}-arm64 -o /tmp/easytier-server-web-${VER_SAFE}-arm64.tar
+          docker save ${IMAGE}:${VER}-amd64 -o /tmp/easytier-server-web-${VER_SAFE}-amd64.tar
+          
+          docker manifest create ${IMAGE}:${VER} \
+            ${IMAGE}:${VER}-arm64 \
+            ${IMAGE}:${VER}-amd64
+          docker manifest push ${IMAGE}:${VER}
+          
+          docker save ${IMAGE}:${VER} -o /tmp/easytier-server-web-${VER_SAFE}-multiarch.tar
+          
+          ls -lh /tmp/easytier-server-web-*.tar
+
+      - name: Create Release and upload assets
+        env:
+          VER: ${{ github.event.inputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER_SAFE=${VER#v}
+          
+          gh release create ${VER} \
+            --title "EasyTier Server Web ${VER}" \
+            --notes "Automated build from jaycq/easytier-server-web with official EasyTier ${VER} binaries" \
+            /tmp/easytier-server-web-${VER_SAFE}-arm64.tar \
+            /tmp/easytier-server-web-${VER_SAFE}-amd64.tar \
+            /tmp/easytier-server-web-${VER_SAFE}-multiarch.tar
