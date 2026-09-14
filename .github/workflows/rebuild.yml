@@ -113,7 +113,6 @@ jobs:
           
           docker save ${IMAGE}:${VER}-arm64 -o /tmp/easytier-server-web-${VER_SAFE}-arm64.tar
           docker save ${IMAGE}:${VER}-amd64 -o /tmp/easytier-server-web-${VER_SAFE}-amd64.tar
-          docker save ${IMAGE}:${VER} -o /tmp/easytier-server-web-${VER_SAFE}-multiarch.tar
           
           ls -lh /tmp/easytier-server-web-*.tar
 
@@ -128,5 +127,4 @@ jobs:
             --title "EasyTier Server Web ${VER}" \
             --notes "Automated build from jaycq/easytier-server-web with official EasyTier ${VER} binaries" \
             /tmp/easytier-server-web-${VER_SAFE}-arm64.tar \
-            /tmp/easytier-server-web-${VER_SAFE}-amd64.tar \
-            /tmp/easytier-server-web-${VER_SAFE}-multiarch.tar
+            /tmp/easytier-server-web-${VER_SAFE}-amd64.tar
