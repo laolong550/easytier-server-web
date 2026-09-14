@@ -73,6 +73,7 @@ jobs:
           docker buildx build \
             --platform linux/arm64 \
             -t ${IMAGE}:${VER}-arm64 \
+            --provenance=false \
             --push \
             /tmp/ctx-aarch64
           
@@ -81,6 +82,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             -t ${IMAGE}:${VER}-amd64 \
+            --provenance=false \
             --push \
             /tmp/ctx-x86_64
           
